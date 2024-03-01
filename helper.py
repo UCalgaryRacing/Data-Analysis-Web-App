@@ -5,9 +5,84 @@ import seaborn as sns
 import streamlit as st
 import datetime, pytz
 import glob, os
-
+import plotly.graph_objects as go
+from scipy.signal import find_peaks
 
 excel_type =["vnd.ms-excel","vnd.openxmlformats-officedocument.spreadsheetml.sheet", "vnd.oasis.opendocument.spreadsheet", "vnd.oasis.opendocument.text"]
+
+def plotly_any_axis(data, title="", *args):
+    fig = go.Figure()
+
+    # Plot each column on the same plot
+    for column in args:
+        fig.add_trace(go.Scatter(x=data['Timestamp (s)'], y=data[column], mode='lines', name=column))
+
+    # Format the figure
+    fig.update_layout(title=title)
+
+    # Set the same range (adjust as needed) for the y-axis
+    # Right now I have it set to 100, but you can use "auto-scale" on the interactive graph
+    fig.update_layout(yaxis=dict(range=[0, 100]))
+
+    # Recolor to avoid overlapping colors
+    fig.for_each_trace(lambda t: t.update(line=dict(color=t.marker.color)))
+
+    return fig
+
+
+def find_and_print_peaks(data, column):
+    # Find peaks in the current column with a minimum height threshold
+    # Minimum height threshold is currently set to 0 - need to confirm with Steven what a significant value would be
+    peaks, _ = find_peaks(data[column], height=0)
+
+    # Create a DataFrame to store peak information
+    peak_info = pd.DataFrame(columns=['Peak Time', 'Peak Value'])
+
+    for i in range(len(peaks)):
+        peak_time = data.loc[peaks[i], 'Timestamp (s)']
+        peak_value = data.loc[peaks[i], column]
+
+        peak_info = peak_info.append({'Peak Time': peak_time, 'Peak Value': peak_value}, ignore_index=True)
+
+    # Calculate the average value for all data points
+    average_value_all = data[column].mean()
+
+    # Calculate the average value for peaks only
+    average_value_peaks = data.loc[peaks, column].mean()
+
+    # Display the peak information in a table
+    st.subheader(f'{column} Peaks')
+    st.write(f"Average Value (All): {average_value_all:.2f}")
+    st.write(f"Average Value (Peaks): {average_value_peaks:.2f}")
+
+    # If there are more than 10 rows, make the table scrollable
+    if len(peak_info) > 10:
+        st.write(peak_info.style.set_table_attributes("style='max-height: 300px; overflow: auto;'"))
+    else:
+        st.table(peak_info)
+
+    return peak_info
+
+
+def process_excel_file(file_path):
+    # Read the Excel file
+    logfile = pd.read_excel(file_path)
+    
+    # Pull out logging date
+    logging_started = logfile.iloc[4, 1]
+    print(logging_started)
+
+    # Edit the file
+    logfile_edited = pd.read_excel(file_path, skiprows=6)
+    
+    # Fix formatting in column names
+    for i, col in enumerate(logfile_edited.columns):
+        if not pd.isna(logfile_edited.iloc[0, i]):
+            new_col_name = f"{col} ({logfile_edited.iloc[0, i]})" # Add units from first row
+            logfile_edited = logfile_edited.rename(columns={col: new_col_name}) # rename the columns with update names
+    logfile_edited = logfile_edited[1:] # Remove the first row, as the units have been added to the header
+    
+    return logfile_edited
 
 
 def data(data, file_type, seperator=None):

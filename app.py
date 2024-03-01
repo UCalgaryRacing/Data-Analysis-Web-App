@@ -1,7 +1,7 @@
 from cmath import nan
 from datetime import date
 import streamlit as st
-from helper import data, seconddata, match_elements, describe, outliers, drop_items, download_data, filter_data, num_filter_data, rename_columns, clear_image_cache, handling_missing_values, data_wrangling
+from helper import plotly_any_axis, find_and_print_peaks, process_excel_file, data, seconddata, match_elements, describe, outliers, drop_items, download_data, filter_data, num_filter_data, rename_columns, clear_image_cache, handling_missing_values, data_wrangling
 import numpy as np
 import pandas as pd
 
@@ -26,6 +26,25 @@ excel_type =["vnd.ms-excel","vnd.openxmlformats-officedocument.spreadsheetml.she
 uploaded_file = st.sidebar.file_uploader("Upload Your file", type=file_format_type)
 
 if uploaded_file is not None:
+    processed_data = process_excel_file(uploaded_file)
+    st.write(processed_data)
+    # Call the function to create the multi-variable plot
+    # TODO: should be user input
+    # Get user input for columns to plot
+    all_columns = processed_data.columns.tolist()
+    columns_to_plot = st.multiselect("Select columns to plot", all_columns)
+
+    if columns_to_plot:  # Check if any columns are selected
+        # Call the function to create the multi-variable plot
+        fig = plotly_any_axis(processed_data, 'Multi-Variable Plot', *columns_to_plot)
+        st.plotly_chart(fig)
+
+        # Call the function for each selected column to find and print peak information
+        peaks_info = {}
+        for column in columns_to_plot:
+            peaks_info[column] = find_and_print_peaks(processed_data, column)
+    else:
+        st.write("Please select columns to plot.")
 
     file_type = uploaded_file.type.split("/")[1]
     
