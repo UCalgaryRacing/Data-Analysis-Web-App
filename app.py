@@ -62,7 +62,16 @@ if uploaded_file is not None:
 
     multi_function_selector = st.sidebar.multiselect("Enter Name or Select the Column which you Want To Plot: ",functions, default=["Overview"])
 
+    # Call the function to create the multi-variable plot
+    fig = plotly_any_axis(processed_data, 'Multi-Variable Plot', 'Column1', 'Column2', 'Column3')  # Example column names
+    st.plotly_chart(fig)
+
+    # Call the function for each selected column to find and print peak information
+    peaks_info = {}
+    for column in ['Column1', 'Column2', 'Column3']:  # Example column names
+        peaks_info[column] = find_and_print_peaks(processed_data, column)
     st.subheader("Dataset Preview")
+
     st.dataframe(data)
 
     st.text(" ")

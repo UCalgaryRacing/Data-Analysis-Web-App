@@ -10,18 +10,21 @@ from scipy.signal import find_peaks
 
 excel_type =["vnd.ms-excel","vnd.openxmlformats-officedocument.spreadsheetml.sheet", "vnd.oasis.opendocument.spreadsheet", "vnd.oasis.opendocument.text"]
 
-def plotly_any_axis(data, title="", *args):
+def plotly_any_axis(data, title="", x_variable=None, *args):
     fig = go.Figure()
 
-    # Plot each column on the same plot
+    # Plot each specified column on the same plot
     for column in args:
-        fig.add_trace(go.Scatter(x=data['Timestamp (s)'], y=data[column], mode='lines', name=column))
+        fig.add_trace(go.Scatter(x=data[x_variable], y=data[column], mode='lines', name=column))
 
     # Format the figure
     fig.update_layout(title=title)
 
+    # Set the x-axis title
+    fig.update_layout(xaxis_title=x_variable)
+
     # Set the same range (adjust as needed) for the y-axis
-    # Right now I have it set to 100, but you can use "auto-scale" on the interactive graph
+    # Right now, I have it set to 100, but you can use "auto-scale" on the interactive graph
     fig.update_layout(yaxis=dict(range=[0, 100]))
 
     # Recolor to avoid overlapping colors
@@ -29,40 +32,59 @@ def plotly_any_axis(data, title="", *args):
 
     return fig
 
+def find_and_print_peaks(data, x_variable, variable_thresholds, selected_variables):
+    for column in selected_variables:
+        # Find peaks in the current column with a minimum height threshold
+        threshold = variable_thresholds.get(column, 0)  # Default threshold is 0 if not specified
+        peaks, _ = find_peaks(data[column], height=threshold)
 
-def find_and_print_peaks(data, column):
-    # Find peaks in the current column with a minimum height threshold
-    # Minimum height threshold is currently set to 0 - need to confirm with Steven what a significant value would be
-    peaks, _ = find_peaks(data[column], height=0)
+        # Display a table of peak information
+        print(f'\n{column} Peaks')
 
-    # Create a DataFrame to store peak information
-    peak_info = pd.DataFrame(columns=['Peak Time', 'Peak Value'])
+        peak_info = []
+        for i in range(len(peaks)):
+            peak_time = data.loc[peaks[i], x_variable]
+            peak_value = data.loc[peaks[i], column]
 
-    for i in range(len(peaks)):
-        peak_time = data.loc[peaks[i], 'Timestamp (s)']
-        peak_value = data.loc[peaks[i], column]
+            peak_info.append({
+                'Peak Time': peak_time, 'Peak Value': peak_value,
+            })
 
-        peak_info = peak_info.append({'Peak Time': peak_time, 'Peak Value': peak_value}, ignore_index=True)
+        # Calculate and print the average value for all data points
+        average_value_all = data[column].mean()
+        print(f"Average Value (All): {average_value_all:.2f}")
 
-    # Calculate the average value for all data points
-    average_value_all = data[column].mean()
+        # Calculate and print the average value for peaks only
+        average_value_peaks = data.loc[peaks, column].mean()
+        print(f"Average Value (Peaks): {average_value_peaks:.2f}")
 
-    # Calculate the average value for peaks only
-    average_value_peaks = data.loc[peaks, column].mean()
+        peak_info_table = pd.DataFrame(peak_info)
+        print("\nPeak Information:")
+        print(peak_info_table)
 
-    # Display the peak information in a table
-    st.subheader(f'{column} Peaks')
-    st.write(f"Average Value (All): {average_value_all:.2f}")
-    st.write(f"Average Value (Peaks): {average_value_peaks:.2f}")
 
-    # If there are more than 10 rows, make the table scrollable
-    if len(peak_info) > 10:
-        st.write(peak_info.style.set_table_attributes("style='max-height: 300px; overflow: auto;'"))
-    else:
-        st.table(peak_info)
-
-    return peak_info
-
+# Threshold values for peaks
+thresholds = {
+    'IAT (C)': 0.0,
+    'INJPW': 0.0,
+    'MAP (kPa)': 0.0,
+    'RPM (rpm)': 0.0,
+    'TPS (%)': 0.0,
+    'BARO': 0.0,
+    'CLT': 0.0,
+    'FUELP': 0.0,
+    'OILP': 0.0,
+    'OILT': 0.0,
+    'VSPD': 0.0,
+    'CoolingSwitch': 0.0,
+    'FuelPump': 0.0,
+    'MaxCoolSwitch': 0.0,
+    'OutputCurrent': 0.0,
+    'OutputLoad': 0.0,
+    'OutputVoltage': 0.0,
+    'WaterPump': 0.0,
+    'Channel ID (none)': 0.0,
+}
 
 def process_excel_file(file_path):
     # Read the Excel file
