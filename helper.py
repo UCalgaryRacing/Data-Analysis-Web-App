@@ -87,24 +87,28 @@ thresholds = {
 }
 
 def process_excel_file(file_path):
-    # Read the Excel file
-    logfile = pd.read_excel(file_path)
-    
-    # Pull out logging date
-    logging_started = logfile.iloc[4, 1]
-    print(logging_started)
+    try:
+        # Read the Excel file
+        logfile = pd.read_excel(file_path, engine='openpyxl')  # Specify the engine explicitly
+        
+        # Pull out logging date
+        logging_started = logfile.iloc[4, 1]
+        print(logging_started)
 
-    # Edit the file
-    logfile_edited = pd.read_excel(file_path, skiprows=6)
-    
-    # Fix formatting in column names
-    for i, col in enumerate(logfile_edited.columns):
-        if not pd.isna(logfile_edited.iloc[0, i]):
-            new_col_name = f"{col} ({logfile_edited.iloc[0, i]})" # Add units from first row
-            logfile_edited = logfile_edited.rename(columns={col: new_col_name}) # rename the columns with update names
-    logfile_edited = logfile_edited[1:] # Remove the first row, as the units have been added to the header
-    
-    return logfile_edited
+        # Edit the file
+        logfile_edited = pd.read_excel(file_path, skiprows=6, engine='openpyxl')  # Specify the engine explicitly
+        
+        # Fix formatting in column names
+        for i, col in enumerate(logfile_edited.columns):
+            if not pd.isna(logfile_edited.iloc[0, i]):
+                new_col_name = f"{col} ({logfile_edited.iloc[0, i]})" # Add units from first row
+                logfile_edited = logfile_edited.rename(columns={col: new_col_name}) # rename the columns with updated names
+        logfile_edited = logfile_edited[1:] # Remove the first row, as the units have been added to the header
+        
+        return logfile_edited
+    except pd.errors.ParserError:
+        st.error("Error: Please upload a valid Excel file.")
+        return None
 
 
 def data(data, file_type, seperator=None):
